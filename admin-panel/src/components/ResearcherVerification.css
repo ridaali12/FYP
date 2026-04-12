@@ -1,0 +1,240 @@
+.researcher-verification {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.section-header h2 {
+  font-size: 28px;
+  color: var(--text-dark);
+}
+
+.loading-container,
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-light);
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+}
+
+.researchers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.researcher-card {
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-left: 4px solid var(--primary);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.researcher-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.researcher-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.researcher-header h3 {
+  font-size: 20px;
+  color: var(--text-dark);
+}
+
+.badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.researcher-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.info-row {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.6;
+}
+
+.valid-orcid {
+  color: #2e7d32; /* green */
+  font-weight: 600;
+}
+
+.invalid-orcid {
+  color: #c62828; /* red */
+  font-weight: 600;
+}
+
+.info-row strong {
+  color: #333;
+  margin-right: 8px;
+}
+
+.researcher-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.btn-verify,
+.btn-reject {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.btn-verify:hover,
+.btn-reject:hover {
+  transform: translateY(-1px);
+}
+
+.btn-verify {
+  background-color: #4caf50;
+  color: white;
+}
+
+.btn-verify:hover {
+  opacity: 0.9;
+}
+
+.btn-reject {
+  background-color: #f44336;
+  color: white;
+}
+
+.btn-reject:hover {
+  opacity: 0.9;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 24px;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content h3 {
+  font-size: 20px;
+  margin-bottom: 12px;
+  color: var(--text-dark);
+}
+
+.modal-content .form-group {
+  margin: 20px 0;
+}
+
+.modal-content .form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text-dark);
+}
+
+.modal-content .form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: var(--border-radius);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.modal-content .form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-cancel,
+.btn-confirm-reject {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.btn-cancel:hover {
+  background-color: #d0d0d0;
+}
+
+.btn-confirm-reject {
+  background-color: #f44336;
+  color: white;
+}
+
+.btn-confirm-reject:hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .researcher-actions {
+    flex-direction: column;
+  }
+}
