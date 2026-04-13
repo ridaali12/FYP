@@ -9,7 +9,6 @@ import {
   BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -20,9 +19,8 @@ const SignInAs = () => {
   // Prevent back navigation on this screen
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      return true; // Prevent default back behavior
+      return true;
     });
-
     return () => backHandler.remove();
   }, []);
 
@@ -72,34 +70,22 @@ const SignInAs = () => {
         </TouchableOpacity>
       </View>
 
-
       <TouchableOpacity
         style={[
           styles.nextButton,
           !selectedRole && styles.nextButtonDisabled,
         ]}
         activeOpacity={0.9}
-onPress={async () => {
-  if (selectedRole === 'researcher') {
-    // if we've already stored a username (existing account), go straight to login
-    try {
-      const storedUser = await AsyncStorage.getItem('username');
-      if (storedUser) {
-        // clear any leftover signup info
-        await AsyncStorage.removeItem('researcherEducationData');
-        router.replace('/(tabs)/Login');
-        return;
-      }
-    } catch (e) {
-      console.warn('Error accessing storage', e);
-    }
-    router.push('/(tabs)/EducationScreen');
-  } else if (selectedRole === 'individual') {
-    router.replace('/(tabs)/Signup');
-  }
-}}
-disabled={!selectedRole}
->
+        onPress={() => {
+          if (selectedRole === 'researcher') {
+            // Researcher: always start from EducationScreen → OrcidSignIn → Login
+            router.push('/(tabs)/EducationScreen');
+          } else if (selectedRole === 'individual') {
+            router.replace('/(tabs)/Signup');
+          }
+        }}
+        disabled={!selectedRole}
+      >
         <Text style={[
           styles.nextButtonText,
           !selectedRole && styles.nextButtonTextDisabled,
@@ -218,4 +204,3 @@ const styles = StyleSheet.create({
 });
 
 export default SignInAs;
-
