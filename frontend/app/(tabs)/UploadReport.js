@@ -13,6 +13,42 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNav from '../../components/BottomNav';
 import { useAlerts } from '../../contexts/AlertContext.js';
 import AlertTestButton from '../../components/AlertTestButton';
+import NetInfo from '@react-native-community/netinfo';
+
+// ✅ OFFLINE QUEUE HELPERS
+const OFFLINE_QUEUE_KEY = 'offline_reports_queue';
+
+// Save offline report (always pending)
+const saveOfflineReport = async (report) => {
+  try {
+    const existing = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+    const reports = existing ? JSON.parse(existing) : [];
+
+    const updatedReport = {
+      ...report,
+      status: "pending",
+      id: report.id || Date.now(),
+    };
+
+    reports.push(updatedReport);
+
+    await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(reports));
+    console.log("📴 Saved offline (pending)");
+  } catch (e) {
+    console.log("Error saving offline report", e);
+  }
+};
+
+// Get reports
+const getOfflineReports = async () => {
+  const data = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+  return data ? JSON.parse(data) : [];
+};
+
+// Save updated queue (important for marking synced)
+const updateOfflineReports = async (reports) => {
+  await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(reports));
+};
 
 // ✅ Cloudinary Configuration - REPLACE WITH YOUR ACTUAL VALUES
 const CLOUDINARY_CLOUD_NAME = 'dlkjgegss'; // Replace with your cloud name
@@ -100,6 +136,59 @@ const UploadReport = () => {
     }
   }, [weather]);
 
+  // ✅ AUTO SYNC WHEN INTERNET RETURNS
+  useEffect(() => {
+    let isSyncing = false;
+
+    const unsubscribe = NetInfo.addEventListener(async (state) => {
+      if (state.isConnected && !isSyncing) {
+        isSyncing = true;
+
+        const offlineReports = await getOfflineReports();
+
+        // only pending ones
+        const pendingReports = offlineReports.filter(r => r.status === "pending");
+
+        if (pendingReports.length > 0) {
+          console.log("🔄 Syncing pending reports...");
+
+          const updatedReports = [...offlineReports];
+
+          for (let i = 0; i < updatedReports.length; i++) {
+            const report = updatedReports[i];
+
+            if (report.status !== "pending") continue;
+
+            try {
+              await fetch("http://192.168.100.2:5000/api/reports", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(report),
+              });
+
+              // mark as synced (IMPORTANT FIX)
+              updatedReports[i] = {
+                ...report,
+                status: "synced",
+              };
+
+            } catch (err) {
+              console.log("❌ Failed sync for one report");
+            }
+          }
+
+          await updateOfflineReports(updatedReports);
+
+          Alert.alert("Synced", "Offline reports uploaded successfully!");
+        }
+
+        isSyncing = false;
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+  
   const fetchLocationAndWeather = async () => {
     setLocationLoading(true);
     setWeatherLoading(true);
@@ -155,9 +244,12 @@ const UploadReport = () => {
     return true;
   };
 
+  // ✅ FIXED: Updated to use new MediaType API
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 1,
+      mediaTypes: [ImagePicker.MediaType.Images], // ✅ Fixed deprecation warning
+      allowsEditing: true, 
+      quality: 1,
     });
     if (!result.canceled) {
       const selected = result.assets[0];
@@ -168,6 +260,7 @@ const UploadReport = () => {
     }
   };
 
+  // ✅ FIXED: Updated to use new MediaType API
   const pickFromCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -175,7 +268,9 @@ const UploadReport = () => {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 1,
+      mediaTypes: [ImagePicker.MediaType.Images], // ✅ Fixed deprecation warning
+      allowsEditing: true, 
+      quality: 1,
     });
     if (!result.canceled) {
       const selected = result.assets[0];
@@ -240,63 +335,78 @@ const UploadReport = () => {
       return;
     }
 
-    setUploading(true); // Start uploading state
+    setUploading(true);
 
     try {
-      // 1. First upload image to Cloudinary
-      Alert.alert('Uploading', 'Uploading image to cloud...');
-      const imageUrl = await uploadImageToCloudinary(image);
-      
-      // 2. Get user info from AsyncStorage
+      const netState = await NetInfo.fetch();
+
+      let imageUrl = image;
+
+      // ✅ Upload image ONLY if internet is available
+      if (netState.isConnected) {
+        try {
+          imageUrl = await uploadImageToCloudinary(image);
+        } catch (err) {
+          console.log("Cloudinary failed, will save offline");
+        }
+      }
+
       const userId = await AsyncStorage.getItem('userId');
       const username = await AsyncStorage.getItem('username');
-      
-      // 3. Prepare report data with Cloudinary URL instead of local URI
+
       const reportData = {
-        image: imageUrl, // ✅ This is now a public Cloudinary URL!
+        id: Date.now(),
+        status: "pending", // IMPORTANT
+        image: imageUrl,
         specieName,
         healthStatus: selectedHealth,
-        location, 
+        location,
         timestamp,
         userId: userId || 'anonymous',
         username: username || 'Anonymous User',
         weatherConditions: weather ? {
-          temperature:  `${weather.temperature}°C`,
-          feelsLike:    `${weather.feelsLike}°C`,
-          condition:     weather.condition,
-          description:   weather.description,
-          humidity:     `${weather.humidity}%`,
-          windSpeed:    `${weather.windSpeed} m/s`,
-          visibility:   `${weather.visibility} km`,
-          pressure:     `${weather.pressure} hPa`,
-          capturedAt:    weather.capturedAt,
-          researchNote:  weather.researchNote,
-          behaviorHint:  weather.behaviorHint,
+          temperature: `${weather.temperature}°C`,
+          feelsLike: `${weather.feelsLike}°C`,
+          condition: weather.condition,
+          description: weather.description,
+          humidity: `${weather.humidity}%`,
+          windSpeed: `${weather.windSpeed} m/s`,
+          visibility: `${weather.visibility} km`,
+          pressure: `${weather.pressure} hPa`,
+          capturedAt: weather.capturedAt,
+          researchNote: weather.researchNote,
+          behaviorHint: weather.behaviorHint,
         } : null,
       };
 
-      // 4. Confirm upload
+      // 🔴 IF OFFLINE → SAVE LOCALLY
+      if (!netState.isConnected) {
+        await saveOfflineReport(reportData);
+        Alert.alert("Offline Mode", "Report saved offline and will sync automatically.");
+        setUploading(false);
+        return;
+      }
+
+      // 🟢 IF ONLINE → NORMAL FLOW
       Alert.alert('Confirm Upload', 'Are you sure you want to upload this report?', [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel', onPress: () => setUploading(false) },
         {
           text: 'Upload',
           onPress: async () => {
             try {
-              const API_URL = 'http://192.168.100.2:5000';
-              const response = await fetch(`${API_URL}/api/reports`, {
+              const response = await fetch("http://192.168.100.2:5000/api/reports", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(reportData),
               });
-              
+
               const result = await response.json();
-              
+
               if (response.ok) {
-                // Trigger alerts based on health status
                 if (selectedHealth === 'Injured') {
                   addHighAlert(
                     '🚨 INJURED ANIMAL REPORTED',
-                    `${specieName} needs immediate attention! Location: ${location?.latitude?.toFixed(4)}, ${location?.longitude?.toFixed(4)}`,
+                    `${specieName} needs immediate attention!`,
                     result.reportId
                   );
                 } else {
@@ -305,16 +415,19 @@ const UploadReport = () => {
                     `${specieName} sighting reported successfully`
                   );
                 }
-                
+
                 Alert.alert('Success', 'Report uploaded successfully!', [
                   { text: 'OK', onPress: () => router.push('/(tabs)/ReportsFeed') },
                 ]);
               } else {
-                Alert.alert('Error', 'Failed to upload report. Please try again.');
+                // 🔴 SAVE IF SERVER FAILS
+                await saveOfflineReport(reportData);
+                Alert.alert("Saved Offline", "Server failed. Report saved locally.");
               }
             } catch (error) {
-              console.error('Upload error:', error);
-              Alert.alert('Connection Error', 'Could not connect to server.');
+              console.log("Server error, saving offline");
+              await saveOfflineReport(reportData);
+              Alert.alert("Saved Offline", "No connection. Report saved locally.");
             } finally {
               setUploading(false);
             }
@@ -322,8 +435,7 @@ const UploadReport = () => {
         },
       ]);
     } catch (error) {
-      Alert.alert('Upload Failed', 'Failed to upload image to cloud. Please try again.');
-      console.error('Upload error:', error);
+      console.error(error);
       setUploading(false);
     }
   };
@@ -494,14 +606,7 @@ const UploadReport = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Uploading Overlay */}
-      {uploading && (
-        <View style={styles.uploadingContainer}>
-          <ActivityIndicator size="large" color="#1B5E20" />
-          <Text style={styles.uploadingText}>Uploading image to cloud...</Text>
-        </View>
-      )}
-
+      
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.push('/(tabs)/HomeScreen')}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
