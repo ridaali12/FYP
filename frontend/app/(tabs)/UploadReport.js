@@ -12,7 +12,6 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNav from '../../components/BottomNav';
 import { useAlerts } from '../../contexts/AlertContext.js';
-import AlertTestButton from '../../components/AlertTestButton';
 import NetInfo from '@react-native-community/netinfo';
 
 // ✅ OFFLINE QUEUE HELPERS
@@ -114,7 +113,7 @@ const UploadReport = () => {
   const router = useRouter();
   const { addHighAlert, addNormalAlert } = useAlerts();
   const [image, setImage]                     = useState(null);
-  const [uploading, setUploading]             = useState(false); // New state for upload progress
+  const [uploading, setUploading]             = useState(false);
   const [specieName, setSpecieName]           = useState('');
   const [selectedHealth, setSelectedHealth]   = useState(null);
   const [location, setLocation]               = useState(null);
@@ -244,10 +243,9 @@ const UploadReport = () => {
     return true;
   };
 
-  // ✅ FIXED: Updated to use new MediaType API
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: [ImagePicker.MediaType.Images], // ✅ Fixed deprecation warning
+      mediaTypes: 'Images',
       allowsEditing: true, 
       quality: 1,
     });
@@ -260,7 +258,6 @@ const UploadReport = () => {
     }
   };
 
-  // ✅ FIXED: Updated to use new MediaType API
   const pickFromCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -268,7 +265,7 @@ const UploadReport = () => {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: [ImagePicker.MediaType.Images], // ✅ Fixed deprecation warning
+      mediaTypes: 'Images',
       allowsEditing: true, 
       quality: 1,
     });
@@ -286,17 +283,14 @@ const UploadReport = () => {
     setSpecieName('Identified Specie Name');
   };
 
-  // ✅ NEW FUNCTION: Upload image to Cloudinary
   const uploadImageToCloudinary = async (imageUri) => {
     try {
-      // Compress image for faster upload and to stay within free tier limits
       const compressed = await ImageManipulator.manipulateAsync(
         imageUri,
-        [{ resize: { width: 1200 } }], // Reasonable size for reports
+        [{ resize: { width: 1200 } }],
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      // Create form data for Cloudinary upload
       const formData = new FormData();
       formData.append('file', {
         uri: compressed.uri,
@@ -304,9 +298,8 @@ const UploadReport = () => {
         name: `wildlife-report-${Date.now()}.jpg`,
       });
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-      formData.append('folder', 'wildlife_reports'); // Optional: organize in folders
+      formData.append('folder', 'wildlife_reports');
 
-      // Upload to Cloudinary
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
         {
@@ -322,7 +315,7 @@ const UploadReport = () => {
       }
 
       console.log('✅ Image uploaded to Cloudinary:', data.secure_url);
-      return data.secure_url; // This is the public URL to store in database
+      return data.secure_url;
     } catch (error) {
       console.error('❌ Cloudinary upload error:', error);
       throw error;
@@ -342,7 +335,6 @@ const UploadReport = () => {
 
       let imageUrl = image;
 
-      // ✅ Upload image ONLY if internet is available
       if (netState.isConnected) {
         try {
           imageUrl = await uploadImageToCloudinary(image);
@@ -356,7 +348,7 @@ const UploadReport = () => {
 
       const reportData = {
         id: Date.now(),
-        status: "pending", // IMPORTANT
+        status: "pending",
         image: imageUrl,
         specieName,
         healthStatus: selectedHealth,
@@ -379,7 +371,6 @@ const UploadReport = () => {
         } : null,
       };
 
-      // 🔴 IF OFFLINE → SAVE LOCALLY
       if (!netState.isConnected) {
         await saveOfflineReport(reportData);
         Alert.alert("Offline Mode", "Report saved offline and will sync automatically.");
@@ -387,7 +378,6 @@ const UploadReport = () => {
         return;
       }
 
-      // 🟢 IF ONLINE → NORMAL FLOW
       Alert.alert('Confirm Upload', 'Are you sure you want to upload this report?', [
         { text: 'Cancel', style: 'cancel', onPress: () => setUploading(false) },
         {
@@ -420,7 +410,6 @@ const UploadReport = () => {
                   { text: 'OK', onPress: () => router.push('/(tabs)/ReportsFeed') },
                 ]);
               } else {
-                // 🔴 SAVE IF SERVER FAILS
                 await saveOfflineReport(reportData);
                 Alert.alert("Saved Offline", "Server failed. Report saved locally.");
               }
@@ -440,7 +429,6 @@ const UploadReport = () => {
     }
   };
 
-  // Define WeatherMetric component and styles BEFORE return
   const WeatherMetric = ({ icon, label, value, color, small }) => (
     <View style={metricStyles.tile}>
       <View style={[metricStyles.iconBox, { backgroundColor: color + '18' }]}>
@@ -792,7 +780,7 @@ const UploadReport = () => {
         <View style={{ height: 10 }} />
       </ScrollView>
       <BottomNav />
-      <AlertTestButton />
+      {/* AlertTestButton component removed from here */}
     </SafeAreaView>
   );
 };
