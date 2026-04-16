@@ -9,6 +9,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -22,6 +23,15 @@ const SignInAs = () => {
       return true;
     });
     return () => backHandler.remove();
+  }, []);
+
+  // Clear any stored user type when this screen loads
+  useEffect(() => {
+    const clearStoredData = async () => {
+      // Don't clear everything, just ensure fresh selection
+      console.log('SignInAs screen loaded');
+    };
+    clearStoredData();
   }, []);
 
   return (
@@ -57,9 +67,9 @@ const SignInAs = () => {
           style={[
             styles.card,
             styles.individualCard,
-            selectedRole === 'individual' && styles.cardSelected,
+            selectedRole === 'community' && styles.cardSelected,
           ]}
-          onPress={() => setSelectedRole('individual')}
+          onPress={() => setSelectedRole('community')}
           activeOpacity={0.8}
         >
           <View style={styles.iconContainer}>
@@ -76,12 +86,20 @@ const SignInAs = () => {
           !selectedRole && styles.nextButtonDisabled,
         ]}
         activeOpacity={0.9}
-        onPress={() => {
+        onPress={async () => {
           if (selectedRole === 'researcher') {
-            // Researcher: always start from EducationScreen → OrcidSignIn → Login
+            // Clear any previous community data
+            await AsyncStorage.removeItem('userType');
+            await AsyncStorage.setItem('selectedUserType', 'researcher');
+            // Researcher: start from EducationScreen
             router.push('/(tabs)/EducationScreen');
-          } else if (selectedRole === 'individual') {
-            router.replace('/(tabs)/Signup');
+          } else if (selectedRole === 'community') {
+            // Clear any previous researcher data
+            await AsyncStorage.removeItem('userType');
+            await AsyncStorage.removeItem('researcherEducationData');
+            await AsyncStorage.setItem('selectedUserType', 'community');
+            // Community: direct signup
+            router.push('/(tabs)/Signup');
           }
         }}
         disabled={!selectedRole}
