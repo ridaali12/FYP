@@ -11,7 +11,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import KeyboardAwareContainer from '../../components/KeyboardAwareContainer';
+import KeyboardAwareContainer from '../../assets/components/KeyboardAwareContainer';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../../constants/api';
