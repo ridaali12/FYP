@@ -16,7 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import BottomNav from '../../components/BottomNav';
+import BottomNav from '../../assets/components/BottomNav';
+
 
 const API_URL = 'http://192.168.100.2:5000';
 
@@ -235,6 +236,24 @@ const HomeScreen = () => {
           </View>
         </View>
 
+        {/* NGO List Card - Added above Upload New Report */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.ngoCard}
+            onPress={() => router.push('/(tabs)/NGOListScreen')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.ngoIconContainer, { backgroundColor: '#fff3e0' }]}>
+              <Ionicons name="people-outline" size={32} color="#e65100" />
+            </View>
+            <View style={styles.ngoTextContainer}>
+              <Text style={styles.ngoCardTitle}>NGO List</Text>
+              <Text style={styles.ngoCardSubtitle}>View Organizations</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#e65100" />
+          </TouchableOpacity>
+        </View>
+
         {/* Upload New Report */}
         <View style={styles.section}>
           <View style={styles.uploadSection}>
@@ -322,6 +341,21 @@ const HomeScreen = () => {
               <Ionicons name="trophy-outline" size={22} color="#2d6a4f" />
             </View>
             <Text style={styles.sidebarText}>Awards & Badges</Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
+
+          {/* ✅ Survey Notifications */}
+          <TouchableOpacity
+            style={styles.sidebarItem}
+            onPress={() => {
+              toggleSidebar();
+              router.push('/(tabs)/SurveyNotifications');
+            }}
+          >
+            <View style={styles.sidebarIconWrapper}>
+              <Ionicons name="notifications-outline" size={22} color="#2d6a4f" />
+            </View>
+            <Text style={styles.sidebarText}>Survey Notifications</Text>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
 
@@ -487,6 +521,41 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 
+  // NGO Card Styles
+  ngoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  ngoIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  ngoTextContainer: {
+    flex: 1,
+  },
+  ngoCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  ngoCardSubtitle: {
+    fontSize: 12,
+    color: '#666',
+  },
+
   analyticsSection: {
     marginHorizontal: 15,
     padding: 15,
@@ -497,6 +566,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 3,
+    marginTop: 20,
   },
   analyticsTitle: { fontSize: 18, fontWeight: '600', marginBottom: 10 },
   analyticsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
