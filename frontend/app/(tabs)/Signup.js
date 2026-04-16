@@ -11,16 +11,18 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import KeyboardAwareContainer from '../../components/KeyboardAwareContainer';
-import { useRouter } from 'expo-router';
+import KeyboardAwareContainer from '../../assets/components/KeyboardAwareContainer';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { verifyEmail, quickEmailValidation } from '../../utils/emailVerification';
-
 import { API_URL } from '../../constants/api';
 import { validateOrcid } from '../../utils/orcid';
 
 const Signup = () => {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  
+  // State variables
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,7 +30,7 @@ const Signup = () => {
   const [passwordError, setPasswordError] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [userType, setUserType] = useState('community');
+  const [userType, setUserType] = useState('community'); // Default: community
   const [educationData, setEducationData] = useState(null);
   const [orcid, setOrcid] = useState('');
   const [orcidError, setOrcidError] = useState('');
@@ -41,17 +43,36 @@ const Signup = () => {
   const [quickEmailError, setQuickEmailError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Check if user is a researcher and load education data
+  // Check for selected user type from SignInAs screen
   useEffect(() => {
     const checkUserType = async () => {
-      const storedUserType = await AsyncStorage.getItem('userType');
-      const storedEducationData = await AsyncStorage.getItem('researcherEducationData');
-      
-      if (storedUserType === 'researcher' && storedEducationData) {
-        setUserType('researcher');
-        setEducationData(JSON.parse(storedEducationData));
+      try {
+        const selectedUserType = await AsyncStorage.getItem('selectedUserType');
+        console.log('Selected user type from storage:', selectedUserType);
+        
+        if (selectedUserType === 'researcher') {
+          // Check for researcher education data
+          const storedEducationData = await AsyncStorage.getItem('researcherEducationData');
+          if (storedEducationData) {
+            setUserType('researcher');
+            setEducationData(JSON.parse(storedEducationData));
+          } else {
+            // If no education data, go back to education screen
+            Alert.alert('Error', 'Education data not found. Please start over.');
+            router.replace('/(tabs)/SignInAs');
+          }
+        } else {
+          // Default to community
+          setUserType('community');
+          // Clear any researcher flags
+          await AsyncStorage.removeItem('userType');
+        }
+      } catch (error) {
+        console.error('Error checking user type:', error);
+        setUserType('community');
       }
     };
+    
     checkUserType();
   }, []);
 
@@ -112,7 +133,6 @@ const Signup = () => {
       if (email && email.length > 0) {
         const validation = quickEmailValidation(email);
         if (validation.isValid) {
-          // Auto-verify if basic validation passes
           handleAutoVerifyEmail();
         } else {
           setQuickEmailError(validation.message);
@@ -120,7 +140,7 @@ const Signup = () => {
           setEmailVerificationResult(null);
         }
       }
-    }, 1500); // Wait 1.5 seconds after user stops typing
+    }, 1500);
 
     return () => clearTimeout(timeoutId);
   }, [email]);
@@ -142,7 +162,7 @@ const Signup = () => {
     }
   };
 
-  // Auto-verify email (without button click)
+  // Auto-verify email
   const handleAutoVerifyEmail = async () => {
     const basicValidation = validateEmail(email);
     if (basicValidation) {
@@ -195,13 +215,12 @@ const Signup = () => {
       return;
     }
 
-    // ORCID validation for researchers
+    // ORCID validation for researchers only
     if (userType === 'researcher') {
       const orcidCheck = validateOrcid(orcid);
       if (!orcidCheck.isValid) {
         setOrcidError('Please enter a valid ORCID identifier');
         Alert.alert('Validation Error', 'Please enter a valid ORCID identifier');
-        setLoading(false);
         return;
       }
     }
@@ -258,7 +277,6 @@ const Signup = () => {
         requestBody.orcid = orcid.trim();
       }
 
-
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -284,12 +302,12 @@ const Signup = () => {
       }
 
       if (response.ok) {
-        // if researcher registration, don't log in immediately until verified
+        // Clear stored selection data
+        await AsyncStorage.removeItem('selectedUserType');
+        
         if (userType === 'researcher') {
-          // clear any saved education data
           await AsyncStorage.removeItem('researcherEducationData');
           await AsyncStorage.setItem('userType', 'researcher');
-          // store a flag so we know to show verification page on next start
           await AsyncStorage.setItem('pendingVerification', 'true');
 
           Alert.alert('Registered – Pending Approval', 'Your researcher account has been created and is awaiting admin approval. You will be able to log in once verified.', [
@@ -299,7 +317,7 @@ const Signup = () => {
             },
           ]);
         } else {
-          // community users redirect to Login after signup
+          // Community user
           Alert.alert('Success', 'Account created successfully! Please log in.', [
             {
               text: 'OK',
@@ -348,7 +366,7 @@ const Signup = () => {
       return [styles.input, styles.inputSuccess];
     }
     return styles.input;
-  }
+  };
 
   return (
     <KeyboardAwareContainer>
@@ -392,7 +410,6 @@ const Signup = () => {
                 autoCapitalize="none"
               />
               
-              {/* Verification Status Icon - Hidden during verification */}
               {emailVerified && !isVerifyingEmail && (
                 <View style={styles.verificationIcon}>
                   <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
@@ -406,7 +423,6 @@ const Signup = () => {
             </View>
           </View>
 
-          {/* Email Status Messages - No verifying message shown */}
           {quickEmailError && !emailError && !isVerifyingEmail ? (
             <Text style={styles.warningText}>
               <Ionicons name="alert-circle-outline" size={14} color="#ff9800" /> {quickEmailError}
@@ -416,23 +432,13 @@ const Signup = () => {
             <Text style={styles.errorText}>{emailError}</Text>
           ) : null}
           
-          {/* Email Verified Success Message */}
           {emailVerified && !isVerifyingEmail && (
             <Text style={styles.successText}>
               <Ionicons name="checkmark-circle" size={14} color="#4CAF50" /> Email verified successfully
             </Text>
           )}
 
-          {/* Email Verification Details - Only show disposable warning */}
-          {emailVerificationResult?.isValid && emailVerificationResult.details?.disposable && (
-            <View style={styles.emailDetailsContainer}>
-              <Text style={[styles.detailText, { color: '#FF6B6B' }]}>
-                • Disposable email (not allowed)
-              </Text>
-            </View>
-          )}
-
-          {/* ORCID input for researcher signups */}
+          {/* ORCID input - ONLY for researcher signups */}
           {userType === 'researcher' && (
             <>
               <TextInput
@@ -441,7 +447,7 @@ const Signup = () => {
                   orcidError && styles.inputError,
                   orcidValid && styles.inputSuccess,
                 ]}
-                placeholder="0000-0000-0000-0000"
+                placeholder="ORCID (e.g., 0000-0000-0000-0000)"
                 placeholderTextColor="#999"
                 value={orcid}
                 onChangeText={(text) => {
@@ -450,7 +456,7 @@ const Signup = () => {
                   const chk = validateOrcid(text);
                   setOrcidValid(chk.isValid);
                   if (!chk.isValid && text.length > 0) {
-                    setOrcidError('Invalid ORCID');
+                    setOrcidError('Invalid ORCID format');
                   }
                 }}
                 autoCapitalize="characters"
@@ -459,7 +465,7 @@ const Signup = () => {
             </>
           )}
 
-          {/* Password Input with Eye Button */}
+          {/* Password Input */}
           <View style={styles.passwordContainer}>
             <TextInput
               style={[styles.passwordInput, passwordError && styles.inputError]}
@@ -500,14 +506,14 @@ const Signup = () => {
           {loading ? (
             <ActivityIndicator color="#000" />
           ) : (
-            <Text style={styles.signInButtonText}>SIGN IN</Text>
+            <Text style={styles.signInButtonText}>SIGN UP</Text>
           )}
         </TouchableOpacity>
 
         <View style={styles.loginContainer}>
           <Text style={styles.loginText}>Already have an account? </Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/Login')}>
-            <Text style={styles.loginLink}>login</Text>
+            <Text style={styles.loginLink}>Login</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -524,21 +530,22 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginTop: 100,
+    marginTop: 60,
     marginBottom: 20,
   },
   logo: {
-    width: 280,
-    height: 280,
+    width: 250,
+    height: 250,
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '600',
     color: '#000',
-    marginBottom: 50,
+    marginBottom: 40,
   },
   formContainer: {
-    width: '95%',
-    marginBottom: 40,
+    width: '100%',
+    marginBottom: 30,
   },
   input: {
     width: '100%',
@@ -548,19 +555,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     fontSize: 14,
     color: '#000',
-    marginBottom: 29,
+    marginBottom: 15,
   },
   emailContainer: {
-    marginBottom: 15,
+    marginBottom: 5,
   },
   emailInputWrapper: {
     position: 'relative',
-    marginBottom: -9,
+    marginBottom: 5,
   },
   passwordContainer: {
     position: 'relative',
     width: '100%',
-    marginBottom: 15,
+    marginBottom: 5,
   },
   passwordInput: {
     width: '100%',
@@ -583,20 +590,9 @@ const styles = StyleSheet.create({
     right: 15,
     top: 13,
   },
-  emailDetailsContainer: {
-    backgroundColor: '#f9f9f9',
-    padding: 10,
-    borderRadius: 6,
-    marginBottom: 10,
-  },
-  detailText: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 2,
-  },
   signInButton: {
     backgroundColor: '#F4D03F',
-    width: '95%',
+    width: '100%',
     height: 56,
     borderRadius: 8,
     justifyContent: 'center',
@@ -611,6 +607,7 @@ const styles = StyleSheet.create({
   loginContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   loginText: {
     fontSize: 14,
@@ -635,29 +632,25 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#FF6B6B',
     fontSize: 12,
-    marginTop: -15,
     marginBottom: 10,
     marginLeft: 5,
   },
   warningText: {
     color: '#ff9800',
     fontSize: 12,
-    marginTop: -15,
     marginBottom: 10,
     marginLeft: 5,
   },
   successText: {
     color: '#4CAF50',
     fontSize: 12,
-    marginTop: -5,
     marginBottom: 10,
     marginLeft: 5,
-    fontWeight: '500',
   },
   helperText: {
     color: '#999',
     fontSize: 11,
-    marginTop: -15,
+    marginTop: 5,
     marginBottom: 10,
     marginLeft: 5,
   },
