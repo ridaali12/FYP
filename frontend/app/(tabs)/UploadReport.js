@@ -4,13 +4,14 @@ import {
   ScrollView, Alert, StyleSheet, ActivityIndicator, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import NotificationBell from '../../assets/components/NotificationBell';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import BottomNav from '../../components/BottomNav';
+import BottomNav from '../../assets/components/BottomNav';
 import { useAlerts } from '../../contexts/AlertContext.js';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -600,7 +601,7 @@ const UploadReport = () => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Upload Sighting Report</Text>
-        <View style={{ width: 24 }} />
+        <NotificationBell color="#fff" />
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
